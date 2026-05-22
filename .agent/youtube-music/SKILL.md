@@ -12,18 +12,18 @@ This skill enables your AI agent to control system music playback and interact w
 *   **Authentication:** Managed via `oauth.json` in the `/Users/adithya/Development/adithyasean/music-cli` directory.
 
 ## Available CLI Tools
-The CLI is managed using `uv` inside `/Users/adithya/Development/adithyasean/music-cli`:
+The CLI is installed globally and can be run from any directory:
 
-*   **Search Tracks:** `uv run music search "<query>"`
-*   **Play Song by Search:** `uv run music play "<query>"`
-*   **Play Song by Video ID:** `uv run music play-id <video_id>`
-*   **Pause/Resume Playback:** `uv run music toggle`
-*   **Stop Playback completely:** `uv run music stop`
-*   **Get Live Telemetry/Metadata:** `uv run music status`
-*   **Set Volume Level (0-100):** `uv run music volume <percentage>`
-*   **View Recent Cloud Watch History:** `uv run music history --limit <num>`
-*   **List Library Playlists:** `uv run music playlists --limit <num>`
-*   **Play a Full Playlist:** `uv run music play-playlist <playlist_id>`
+*   **Search Tracks:** `music search "<query>"`
+*   **Play Song by Search:** `music play "<query>"`
+*   **Play Song by Video ID:** `music play-id <video_id>`
+*   **Pause/Resume Playback:** `music toggle`
+*   **Stop Playback completely:** `music stop`
+*   **Get Live Telemetry/Metadata:** `music status`
+*   **Set Volume Level (0-100):** `music volume <percentage>`
+*   **View Recent Cloud Watch History:** `music history --limit <num>`
+*   **List Library Playlists:** `music playlists --limit <num>`
+*   **Play a Full Playlist:** `music play-playlist <playlist_id>`
 
 ## Available MCP Tools
 If the `YouTubeMusicController` MCP server is active in the environment, the following programmatic tools are available:

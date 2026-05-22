@@ -25,3 +25,8 @@ dist/
 *.egg-info/
 .eggs/
 *.egg
+
+# Sensitive session artifacts and temporary reports
+copy_all_as_cURL.txt
+plan.md
+

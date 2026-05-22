@@ -48,6 +48,12 @@ uv run music stop
 
 # Retrieve your recently played history from YouTube Music
 uv run music history --limit 5
+
+# List all playlists in your YouTube Music library
+uv run music playlists
+
+# Play a full playlist by its Playlist ID
+uv run music play-playlist <playlist_id>
 ```
 
 ### 3. Launch the NiceGUI Dashboard

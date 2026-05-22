@@ -14,16 +14,41 @@ brew install mpv
 
 This will automatically configure `mpv` along with the necessary `yt-dlp` stream hooks.
 
-## 🚀 Getting Started
+## 🚀 Getting Started & Installation
 
-### 1. Synchronize the Workspace
-Install the python package and dependencies into a local virtual environment:
+Choose one of the following execution modes:
+
+### Option A: Global CLI & Tool Installation (Highly Recommended)
+You can install this project globally in an isolated environment. This puts the `music` (CLI), `music-mcp` (MCP Server), and `music-ui` (NiceGUI Dashboard) commands directly into your system PATH, allowing you to run them from **any directory** without `uv run` prefixes:
+
 ```bash
-uv sync
+# Install globally in editable mode
+uv tool install --editable .
 ```
 
-### 2. Standard CLI Usage
-Query YouTube Music or control playback from the console:
+Now you can run commands directly from anywhere:
+* `music status`
+* `music-ui`
+* `music-mcp`
+
+---
+
+### Option B: Local Project Execution
+If you prefer running commands strictly inside the local project directory:
+
+1. Sync the project environment:
+   ```bash
+   uv sync
+   ```
+
+2. Prefix all commands with `uv run`:
+   * `uv run music status`
+   * `uv run music-ui`
+   * `uv run music-mcp`
+
+---
+
+## 🛠️ CLI Usage Guide
 ```bash
 # Search tracks
 uv run music search "lofi hip hop"

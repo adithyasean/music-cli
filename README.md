@@ -42,6 +42,12 @@ uv run music volume 50
 
 # Toggle between Play and Pause states
 uv run music toggle
+
+# Stop playback completely
+uv run music stop
+
+# Retrieve your recently played history from YouTube Music
+uv run music history --limit 5
 ```
 
 ### 3. Launch the NiceGUI Dashboard

@@ -83,6 +83,40 @@ async def check_playback_status() -> str:
         print(f"Error retrieving playback status: {e}", file=sys.stderr)
         return f"Error retrieving playback status: {str(e)}"
 
+@mcp.tool()
+async def stop_playback() -> str:
+    """
+    Completely stop playback and clear the active audio track.
+    """
+    try:
+        print("MCP Tool 'stop_playback' called", file=sys.stderr)
+        service.stop_playback()
+        return "Playback successfully stopped."
+    except Exception as e:
+        print(f"Error stopping playback: {e}", file=sys.stderr)
+        return f"Error stopping playback: {str(e)}"
+
+@mcp.tool()
+async def get_recent_history(limit: int = 5) -> str:
+    """
+    Retrieve recently played music history from YouTube Music.
+    Returns a human-readable list of recently played tracks.
+    """
+    try:
+        print(f"MCP Tool 'get_recent_history' called with limit={limit}", file=sys.stderr)
+        results = service.get_history(limit=limit)
+        if not results:
+            return "No recent history found."
+        output = []
+        for index, track in enumerate(results, 1):
+            output.append(
+                f"{index}. {track['title']} by {track['artists']} [Album: {track['album']}] (ID: {track['id']})"
+            )
+        return "\n".join(output)
+    except Exception as e:
+        print(f"Error retrieving history: {e}", file=sys.stderr)
+        return f"Error retrieving history: {str(e)}"
+
 def main():
     mcp.run()
 

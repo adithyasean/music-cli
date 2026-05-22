@@ -95,5 +95,36 @@ def volume(
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
+@app.command()
+def stop():
+    """Completely stop media playback and clear the current track."""
+    try:
+        service.stop_playback()
+        typer.echo("Playback stopped successfully.")
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+@app.command()
+def history(
+    limit: int = typer.Option(5, "--limit", "-l", help="Number of history items to fetch"),
+    json_output: bool = typer.Option(False, "--json", help="Output raw JSON data instead of formatted text.")
+):
+    """Retrieve and display your recently played music history from YouTube Music."""
+    try:
+        results = service.get_history(limit=limit)
+        if json_output:
+            typer.echo(json.dumps(results, indent=2))
+        else:
+            if not results:
+                typer.echo("No recent history found.")
+                return
+            typer.echo("Your Recently Played YouTube Music Tracks:")
+            for index, track in enumerate(results, 1):
+                typer.echo(f"{index}. [{track['id']}] {track['title']} - {track['artists']} (Album: {track['album']})")
+    except Exception as e:
+        typer.echo(f"Error retrieving history: {e}", err=True)
+        raise typer.Exit(1)
+
 if __name__ == "__main__":
     app()

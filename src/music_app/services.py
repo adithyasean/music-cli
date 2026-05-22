@@ -110,6 +110,15 @@ class MusicService:
         self.player.volume = 100
         self.player.pause = False
 
+        # Log playback to YouTube Music watch history if authenticated
+        try:
+            if hasattr(self, "yt") and self.yt and getattr(self.yt, "auth_type", None) and self.yt.auth_type.name != "UNAUTHORIZED":
+                song_data = self.yt.get_song(video_id)
+                self.yt.add_history_item(song_data)
+                print(f"Successfully logged play history to YouTube Music for video: {video_id}", file=sys.stderr)
+        except Exception as e:
+            print(f"Failed to log play history to YouTube Music: {e}", file=sys.stderr)
+
     def toggle_pause(self) -> bool:
         if not self.player:
             self._ensure_mpv_running()
@@ -119,6 +128,47 @@ class MusicService:
         new_state = not self.player.pause
         self.player.pause = new_state
         return new_state
+
+    def stop_playback(self):
+        if not self.player:
+            self._ensure_mpv_running()
+        if not self.player:
+            raise RuntimeError("mpv player is not running.")
+        self.player.command("stop")
+
+    def get_history(self, limit: int = 5) -> List[Dict[str, Any]]:
+        if not hasattr(self, "yt") or not self.yt or not getattr(self.yt, "auth_type", None) or self.yt.auth_type.name == "UNAUTHORIZED":
+            raise RuntimeError("No authenticated session available. Please configure oauth.json.")
+        
+        try:
+            results = self.yt.get_history()
+            tracks = []
+            for track in results[:limit]:
+                artists_list = []
+                if "artists" in track and isinstance(track["artists"], list):
+                    for artist in track["artists"]:
+                        if isinstance(artist, dict) and "name" in artist:
+                            artists_list.append(artist["name"])
+                artists_str = ", ".join(artists_list) if artists_list else "Unknown Artist"
+
+                album_name = "N/A"
+                if "album" in track:
+                    if isinstance(track["album"], dict) and "name" in track["album"]:
+                        album_name = track["album"]["name"]
+                    elif isinstance(track["album"], str):
+                        album_name = track["album"]
+
+                tracks.append({
+                    "id": track.get("videoId", ""),
+                    "title": track.get("title", "Unknown Track"),
+                    "artists": artists_str,
+                    "album": album_name,
+                    "duration": track.get("duration", "N/A")
+                })
+            return tracks
+        except Exception as e:
+            print(f"ytmusicapi history error: {e}", file=sys.stderr)
+            return []
 
     def set_volume(self, val: int):
         if not self.player:

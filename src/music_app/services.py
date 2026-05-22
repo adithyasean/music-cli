@@ -14,6 +14,19 @@ class MusicService:
         self._ensure_mpv_running()
 
     def _init_ytmusic(self, token_path: str, cookie_env_var: str):
+        # Resolve absolute path for token_path if it's relative
+        if not os.path.isabs(token_path):
+            if os.path.exists(token_path):
+                token_path = os.path.abspath(token_path)
+            else:
+                repo_root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", token_path))
+                if os.path.exists(repo_root_path):
+                    token_path = repo_root_path
+                else:
+                    token_path = os.path.abspath(token_path)
+
+        self.token_path = token_path
+
         # Fallback to browser cookies if running on cloud servers to bypass IP blocks
         cookie_val = os.getenv(cookie_env_var)
         if cookie_val:
@@ -26,20 +39,82 @@ class MusicService:
             print("Initializing YTMusic anonymously (Standard Search)", file=sys.stderr)
             self.yt = YTMusic()
 
+    def _generate_cookies_file(self) -> str:
+        """Parse Cookie string from oauth.json and write it in Netscape format."""
+        if not hasattr(self, "token_path") or not self.token_path or not os.path.exists(self.token_path):
+            return ""
+
+        try:
+            import json
+            with open(self.token_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+
+            cookie_str = config.get("Cookie")
+            if not cookie_str:
+                return ""
+
+            cookies_lines = [
+                "# Netscape HTTP Cookie File",
+                "# This file was generated automatically from oauth.json",
+            ]
+
+            pairs = cookie_str.split("; ")
+            for pair in pairs:
+                if "=" in pair:
+                    name, val = pair.split("=", 1)
+                    cookies_lines.append(f".youtube.com\tTRUE\t/\tTRUE\t2147483647\t{name}\t{val}")
+
+            base_dir = os.path.dirname(os.path.abspath(self.token_path))
+            cookies_txt_path = os.path.join(base_dir, "cookies.txt")
+            with open(cookies_txt_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(cookies_lines) + "\n")
+
+            print(f"Successfully generated Netscape cookies file at: {cookies_txt_path}", file=sys.stderr)
+            return cookies_txt_path
+        except Exception as e:
+            print(f"Error generating cookies file: {e}", file=sys.stderr)
+            return ""
+
+    def _is_player_healthy(self) -> bool:
+        """Check if the mpv player is currently responsive over the IPC socket."""
+        if not self.player:
+            return False
+        try:
+            # Query a simple property to test the round-trip IPC communication
+            _ = self.player.volume
+            return True
+        except Exception:
+            # Socket is dead or connection was closed
+            try:
+                self.player.close()
+            except Exception:
+                pass
+            self.player = None
+            return False
+
     def _ensure_mpv_running(self):
+        if self._is_player_healthy():
+            return
+
         try:
             # Check for an active instance on the IPC socket
             self.player = MPV(start_mpv=False, ipc_socket=self.ipc_socket_path)
+            if not self._is_player_healthy():
+                raise RuntimeError("Stale socket connection")
             print(f"Connected to existing mpv player daemon on {self.ipc_socket_path}", file=sys.stderr)
         except Exception:
             print(f"No active mpv daemon on {self.ipc_socket_path}. Spawning new process...", file=sys.stderr)
             # Spawn a new backgrounded, video-disabled, idle mpv daemon
+            cookies_path = self._generate_cookies_file()
             cmd = [
                 "mpv",
                 "--idle",
                 "--no-video",
                 f"--input-ipc-server={self.ipc_socket_path}"
             ]
+            if cookies_path:
+                cmd.append(f"--ytdl-raw-options=cookies={cookies_path}")
+
             try:
                 subprocess.Popen(
                     cmd,
@@ -99,8 +174,7 @@ class MusicService:
         return tracks
 
     def play_track(self, video_id: str):
-        if not self.player:
-            self._ensure_mpv_running()
+        self._ensure_mpv_running()
         if not self.player:
             raise RuntimeError("mpv player is not running and could not be started.")
 
@@ -121,8 +195,7 @@ class MusicService:
 
     def play_playlist(self, playlist_id: str):
         """Load a full YouTube Music playlist into mpv for continuous playback."""
-        if not self.player:
-            self._ensure_mpv_running()
+        self._ensure_mpv_running()
         if not self.player:
             raise RuntimeError("mpv player is not running and could not be started.")
 
@@ -132,8 +205,7 @@ class MusicService:
         self.player.pause = False
 
     def toggle_pause(self) -> bool:
-        if not self.player:
-            self._ensure_mpv_running()
+        self._ensure_mpv_running()
         if not self.player:
             raise RuntimeError("mpv player is not running.")
         
@@ -142,8 +214,7 @@ class MusicService:
         return new_state
 
     def stop_playback(self):
-        if not self.player:
-            self._ensure_mpv_running()
+        self._ensure_mpv_running()
         if not self.player:
             raise RuntimeError("mpv player is not running.")
         self.player.command("stop")
@@ -203,19 +274,17 @@ class MusicService:
             return []
 
     def set_volume(self, val: int):
-        if not self.player:
-            self._ensure_mpv_running()
+        self._ensure_mpv_running()
         if not self.player:
             raise RuntimeError("mpv player is not running.")
             
         self.player.volume = max(0, min(100, val))
 
     def get_status(self) -> Dict[str, Any]:
-        if not self.player:
-            try:
-                self._ensure_mpv_running()
-            except Exception:
-                pass
+        try:
+            self._ensure_mpv_running()
+        except Exception:
+            pass
         
         if not self.player:
             return {

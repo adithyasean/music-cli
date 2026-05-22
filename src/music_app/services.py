@@ -167,3 +167,68 @@ class MusicService:
                 "pause": True,
                 "volume": 0
             }
+
+    def update_credentials(self, raw_input: str, token_path: str = "oauth.json") -> str:
+        import re
+        import json
+        from ytmusicapi import YTMusic
+
+        headers = {}
+        raw_input = raw_input.strip()
+
+        # Check if it looks like a curl command
+        if "curl" in raw_input:
+            # Match -H 'name: value' or -H "name: value"
+            matches = re.findall(r'-H\s+[\'"]([^\'\"]+)[\'"]', raw_input, re.IGNORECASE)
+            # Match --header 'name: value' or --header "name: value"
+            matches += re.findall(r'--header\s+[\'"]([^\'\"]+)[\'"]', raw_input, re.IGNORECASE)
+
+            for match in matches:
+                if ":" in match:
+                    parts = match.split(":", 1)
+                    headers[parts[0].strip()] = parts[1].strip()
+
+            # Match -b 'cookie-value' or --cookie 'cookie-value'
+            cookie_matches = re.findall(r'(?:-b|--cookie)\s+[\'"]([^\'\"]+)[\'"]', raw_input, re.IGNORECASE)
+            if cookie_matches:
+                headers["cookie"] = cookie_matches[0]
+        else:
+            # Treat as raw HTTP header lines
+            for line in raw_input.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                if ":" in line:
+                    parts = line.split(":", 1)
+                    headers[parts[0].strip()] = parts[1].strip()
+
+        # Check if they just pasted a raw Cookie string
+        cookie = headers.get("Cookie") or headers.get("cookie")
+        if not cookie and "__Secure-3PAPISID" in raw_input:
+            cookie = raw_input
+
+        if not cookie:
+            raise ValueError("Could not find a valid 'Cookie' header containing '__Secure-3PAPISID' in the input.")
+
+        user_agent = headers.get("User-Agent") or headers.get("user-agent") or "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+        accept = headers.get("Accept") or headers.get("accept") or "*/*"
+        accept_lang = headers.get("Accept-Language") or headers.get("accept-language") or "en-US,en;q=0.9"
+
+        config = {
+            "User-Agent": user_agent,
+            "Cookie": cookie,
+            "Accept": accept,
+            "Accept-Language": accept_lang,
+            "Origin": "https://music.youtube.com",
+            "X-Origin": "https://music.youtube.com",
+            "Authorization": "SAPISIDHASH"
+        }
+
+        # Write config to file
+        with open(token_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+
+        # Re-initialize YTMusic on-the-fly
+        self.yt = YTMusic(auth=token_path)
+        return "Session updated successfully!"
+

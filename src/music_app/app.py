@@ -154,6 +154,37 @@ def build_ui():
                                 on_click=lambda _, vid_id=track["id"]: service.play_track(vid_id)
                             ).props('flat color=primary size=sm').classes('hover:bg-pink-500/10 rounded-lg')
 
+        # SESSION REFRESH SECTION
+        with ui.expansion('Session & Cookie Settings', icon='vpn_key').classes('w-full max-w-4xl glass-card text-white'):
+            with ui.column().classes('w-full p-4 gap-4'):
+                ui.label('Renew YouTube Premium Session').classes('text-sm font-bold text-zinc-300')
+                ui.markdown(
+                    'To refresh your session, paste either a **cURL command**, '
+                    '**raw HTTP headers**, or your raw **Cookie string** copied from '
+                    'Chrome Developer Tools (logged into `music.youtube.com`).'
+                ).classes('text-xs text-zinc-400')
+                
+                session_input = ui.textarea(
+                    label='Paste cURL, Headers, or Cookie here...', 
+                    placeholder='curl "https://music.youtube.com/..." \\ ...'
+                ).classes('w-full bg-slate-900/50 rounded-lg text-white border-white/5').props('darkOutlined rows=4')
+                
+                async def apply_session():
+                    val = session_input.value
+                    if not val:
+                        ui.notify("Please paste session credentials first.", type="warning")
+                        return
+                    
+                    try:
+                        loop = asyncio.get_event_loop()
+                        msg = await loop.run_in_executor(None, service.update_credentials, val)
+                        ui.notify(msg, type="positive")
+                        session_input.set_value('')
+                    except Exception as err:
+                        ui.notify(str(err), type="negative")
+                
+                ui.button('Update Session', on_click=apply_session).classes('w-full glow-btn').props('color=primary shadow-lg')
+
     # Dynamic status update loop running every second
     def update_status():
         try:

@@ -62,6 +62,19 @@ def play_id(
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
+@app.command(name="play-playlist")
+def play_playlist(
+    playlist_id: str = typer.Argument(..., help="The YouTube Music Playlist ID to play")
+):
+    """Play a full YouTube Music playlist using its Playlist ID."""
+    try:
+        typer.echo(f"Loading playlist ID: {playlist_id}")
+        service.play_playlist(playlist_id)
+        typer.echo("Playlist playback started successfully.")
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
 @app.command()
 def toggle():
     """Toggle the media player between Play and Pause states."""

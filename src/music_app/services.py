@@ -119,6 +119,18 @@ class MusicService:
         except Exception as e:
             print(f"Failed to log play history to YouTube Music: {e}", file=sys.stderr)
 
+    def play_playlist(self, playlist_id: str):
+        """Load a full YouTube Music playlist into mpv for continuous playback."""
+        if not self.player:
+            self._ensure_mpv_running()
+        if not self.player:
+            raise RuntimeError("mpv player is not running and could not be started.")
+
+        playlist_url = f"https://music.youtube.com/playlist?list={playlist_id}"
+        self.player.command("loadfile", playlist_url, "replace")
+        self.player.volume = 100
+        self.player.pause = False
+
     def toggle_pause(self) -> bool:
         if not self.player:
             self._ensure_mpv_running()

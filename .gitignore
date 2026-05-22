@@ -18,3 +18,10 @@ oauth.json
 .python-version
 .idea/
 .vscode/
+
+# Python build/distribution
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg

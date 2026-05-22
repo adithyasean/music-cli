@@ -1,9 +1,11 @@
-from nicegui import ui
+import asyncio
 import sys
+from nicegui import ui
 from music_app.services import MusicService
 
 service = MusicService()
 
+@ui.page('/')
 def build_ui():
     # Inject Google Fonts (Outfit and Inter) and set general dark-mode container style
     ui.add_head_html('''
@@ -185,8 +187,8 @@ def build_ui():
     # Register the 1-second interval timer
     ui.timer(1.0, update_status)
 
-# Build components at import time so NiceGUI registers them in all multiprocessing spawns
-build_ui()
+# Build components dynamically per client connection using explicit route decoration
+
 
 def main():
     # Launch NiceGUI web dashboard with reload=False to prevent multiprocessing console script issues

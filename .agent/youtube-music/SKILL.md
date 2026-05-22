@@ -1,6 +1,6 @@
 ---
 name: YouTube Music Control & Playback
-description: Control YouTube Music streaming playback, check status, adjust volume, view history, and search/play tracks.
+description: Control YouTube Music streaming playback, check status, adjust volume, view history, search/play tracks, and manage playlists.
 ---
 
 # YouTube Music Control & Playback
@@ -22,6 +22,8 @@ The CLI is managed using `uv` inside `/Users/adithya/Development/adithyasean/mus
 *   **Get Live Telemetry/Metadata:** `uv run music status`
 *   **Set Volume Level (0-100):** `uv run music volume <percentage>`
 *   **View Recent Cloud Watch History:** `uv run music history --limit <num>`
+*   **List Library Playlists:** `uv run music playlists --limit <num>`
+*   **Play a Full Playlist:** `uv run music play-playlist <playlist_id>`
 
 ## Available MCP Tools
 If the `YouTubeMusicController` MCP server is active in the environment, the following programmatic tools are available:
@@ -31,3 +33,5 @@ If the `YouTubeMusicController` MCP server is active in the environment, the fol
 *   `check_playback_status()` -> Real-time volume, track metadata, and time elapsed.
 *   `stop_playback()` -> Stop audio streaming.
 *   `get_recent_history(limit: int = 5)` -> Retrieve logged watch history from the premium account.
+*   `list_playlists(limit: int = 25)` -> List all playlists in the user's YouTube Music library.
+*   `play_playlist(playlist_id: str)` -> Load and play a full playlist by its Playlist ID.

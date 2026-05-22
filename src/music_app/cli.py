@@ -1,0 +1,99 @@
+import sys
+import json
+import typer
+from music_app.services import MusicService
+
+app = typer.Typer(
+    help="CLI tool to control system media playback and YouTube Music.",
+    no_args_is_help=True
+)
+service = MusicService()
+
+@app.command()
+def search(
+    query: str = typer.Argument(..., help="The search query (e.g. track title, artist name)"),
+    limit: int = typer.Option(5, "--limit", "-l", help="Maximum number of results to fetch"),
+    json_output: bool = typer.Option(False, "--json", help="Output raw JSON data instead of formatted text.")
+):
+    """Search for songs on YouTube Music."""
+    try:
+        results = service.search_tracks(query, limit=limit)
+        if json_output:
+            typer.echo(json.dumps(results, indent=2))
+        else:
+            if not results:
+                typer.echo("No tracks found.")
+                return
+            for index, track in enumerate(results, 1):
+                typer.echo(f"{index}. [{track['id']}] {track['title']} - {track['artists']} (Album: {track['album']})")
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+@app.command()
+def play(
+    query: str = typer.Argument(..., help="Search query to find and play a song immediately")
+):
+    """Search for a song and immediately play the highest ranked match."""
+    try:
+        results = service.search_tracks(query, limit=1)
+        if not results:
+            typer.echo("No matches found.")
+            raise typer.Exit(1)
+        track = results[0]
+        typer.echo(f"Found match: {track['title']} - {track['artists']}")
+        typer.echo("Starting playback...")
+        service.play_track(track["id"])
+        typer.echo("Playback requested successfully.")
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+@app.command(name="play-id")
+def play_id(
+    video_id: str = typer.Argument(..., help="The YouTube Music Video ID to play")
+):
+    """Play a specific song directly using its YouTube Video ID."""
+    try:
+        typer.echo(f"Loading track ID: {video_id}")
+        service.play_track(video_id)
+        typer.echo("Playback requested successfully.")
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+@app.command()
+def toggle():
+    """Toggle the media player between Play and Pause states."""
+    try:
+        paused = service.toggle_pause()
+        state = "PAUSED" if paused else "PLAYING"
+        typer.echo(f"Player state changed to: {state}")
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+@app.command()
+def status():
+    """Show real-time playback progress, volume level, and track metadata."""
+    try:
+        status_data = service.get_status()
+        typer.echo(json.dumps(status_data, indent=2))
+    except Exception as e:
+        typer.echo(f"Error retrieving status: {e}", err=True)
+        raise typer.Exit(1)
+
+@app.command()
+def volume(
+    val: int = typer.Argument(..., min=0, max=100, help="Volume percentage (0 to 100)")
+):
+    """Set the system media player volume."""
+    try:
+        service.set_volume(val)
+        typer.echo(f"Volume set to {val}%")
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+if __name__ == "__main__":
+    app()

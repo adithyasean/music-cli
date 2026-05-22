@@ -1,0 +1,20 @@
+# Python environment
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Project logs and credential files
+*.log
+oauth.json
+
+# Local configurations
+.python-version
+.idea/
+.vscode/

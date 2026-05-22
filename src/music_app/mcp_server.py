@@ -117,6 +117,26 @@ async def get_recent_history(limit: int = 5) -> str:
         print(f"Error retrieving history: {e}", file=sys.stderr)
         return f"Error retrieving history: {str(e)}"
 
+@mcp.tool()
+async def list_playlists(limit: int = 25) -> str:
+    """
+    List all playlists in the user's YouTube Music library.
+    Returns a human-readable list of playlists with their IDs and track counts.
+    """
+    try:
+        print(f"MCP Tool 'list_playlists' called with limit={limit}", file=sys.stderr)
+        results = service.get_playlists(limit=limit)
+        if not results:
+            return "No playlists found in your library."
+        output = []
+        for index, pl in enumerate(results, 1):
+            count_str = f"{pl['count']} tracks" if pl['count'] != "N/A" else "N/A tracks"
+            output.append(f"{index}. {pl['title']} — {count_str} (ID: {pl['id']})")
+        return "\n".join(output)
+    except Exception as e:
+        print(f"Error retrieving playlists: {e}", file=sys.stderr)
+        return f"Error retrieving playlists: {str(e)}"
+
 def main():
     mcp.run()
 

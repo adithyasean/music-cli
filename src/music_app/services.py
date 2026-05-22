@@ -170,6 +170,26 @@ class MusicService:
             print(f"ytmusicapi history error: {e}", file=sys.stderr)
             return []
 
+    def get_playlists(self, limit: int = 25) -> List[Dict[str, Any]]:
+        """Fetch the authenticated user's YouTube Music library playlists."""
+        if not hasattr(self, "yt") or not self.yt or not getattr(self.yt, "auth_type", None) or self.yt.auth_type.name == "UNAUTHORIZED":
+            raise RuntimeError("No authenticated session available. Please configure oauth.json.")
+
+        try:
+            results = self.yt.get_library_playlists(limit=limit)
+            playlists = []
+            for pl in results:
+                playlists.append({
+                    "id": pl.get("playlistId", ""),
+                    "title": pl.get("title", "Unknown Playlist"),
+                    "count": pl.get("count", "N/A"),
+                    "author": pl.get("author", [{}])[0].get("name", "N/A") if pl.get("author") else "N/A",
+                })
+            return playlists
+        except Exception as e:
+            print(f"ytmusicapi get_library_playlists error: {e}", file=sys.stderr)
+            return []
+
     def set_volume(self, val: int):
         if not self.player:
             self._ensure_mpv_running()

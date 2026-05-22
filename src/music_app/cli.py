@@ -126,5 +126,27 @@ def history(
         typer.echo(f"Error retrieving history: {e}", err=True)
         raise typer.Exit(1)
 
+@app.command()
+def playlists(
+    limit: int = typer.Option(25, "--limit", "-l", help="Maximum number of playlists to fetch"),
+    json_output: bool = typer.Option(False, "--json", help="Output raw JSON data instead of formatted text.")
+):
+    """List all playlists in your YouTube Music library."""
+    try:
+        results = service.get_playlists(limit=limit)
+        if json_output:
+            typer.echo(json.dumps(results, indent=2))
+        else:
+            if not results:
+                typer.echo("No playlists found.")
+                return
+            typer.echo("Your YouTube Music Playlists:")
+            for index, pl in enumerate(results, 1):
+                count_str = f"{pl['count']} tracks" if pl['count'] != "N/A" else "N/A tracks"
+                typer.echo(f"{index}. [{pl['id']}] {pl['title']} — {count_str}")
+    except Exception as e:
+        typer.echo(f"Error retrieving playlists: {e}", err=True)
+        raise typer.Exit(1)
+
 if __name__ == "__main__":
     app()

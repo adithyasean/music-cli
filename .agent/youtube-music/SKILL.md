@@ -24,6 +24,7 @@ The CLI is installed globally and can be run from any directory:
 *   **View Recent Cloud Watch History:** `music history --limit <num>`
 *   **List Library Playlists:** `music playlists --limit <num>`
 *   **Play a Full Playlist:** `music play-playlist <playlist_id>`
+*   **Update Credentials:** `music credentials "<cookie_string>"`
 
 ## Available MCP Tools
 If the `YouTubeMusicController` MCP server is active in the environment, the following programmatic tools are available:

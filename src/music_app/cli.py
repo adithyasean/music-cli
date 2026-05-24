@@ -161,5 +161,18 @@ def playlists(
         typer.echo(f"Error retrieving playlists: {e}", err=True)
         raise typer.Exit(1)
 
+@app.command()
+def credentials(
+    raw_input: str = typer.Argument(..., help="Paste the raw Cookie string or curl command from your browser")
+):
+    """Update your YouTube Music credentials/cookies using a browser Cookie header."""
+    try:
+        typer.echo("Updating credentials...")
+        msg = service.update_credentials(raw_input)
+        typer.echo(msg)
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
 if __name__ == "__main__":
     app()

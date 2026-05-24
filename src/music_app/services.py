@@ -110,17 +110,18 @@ class MusicService:
                 "mpv",
                 "--idle",
                 "--no-video",
+                "--quiet",
                 f"--input-ipc-server={self.ipc_socket_path}"
             ]
-            if cookies_path:
-                cmd.append(f"--ytdl-raw-options=cookies={cookies_path}")
+            # Always use cookies-from-browser=chrome to ensure we extract fresh active browser session cookies
+            cmd.append("--ytdl-raw-options=cookies-from-browser=chrome")
 
             try:
+                log_file = open("/tmp/mpv-music.log", "w", encoding="utf-8")
                 subprocess.Popen(
                     cmd,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    preexec_fn=None if sys.platform == "win32" else os.setpgrp
+                    stdout=log_file,
+                    stderr=log_file
                 )
                 # Allow time for socket binding
                 time.sleep(1.0)
@@ -299,12 +300,24 @@ class MusicService:
 
         try:
             metadata = self.player.metadata or {}
+            duration = self.player.duration
+            if not duration or duration == 0.0:
+                return {
+                    "title": "Stopped",
+                    "artist": "N/A",
+                    "album": "N/A",
+                    "playback_time": 0.0,
+                    "duration": 0.0,
+                    "pause": True,
+                    "volume": self.player.volume or 0.0
+                }
+
             return {
                 "title": metadata.get("title", "Unknown Track"),
                 "artist": metadata.get("artist", "Unknown Artist"),
                 "album": metadata.get("album", "Unknown Album"),
                 "playback_time": self.player.playback_time or 0.0,
-                "duration": self.player.duration or 0.0,
+                "duration": duration,
                 "pause": self.player.pause,
                 "volume": self.player.volume
             }

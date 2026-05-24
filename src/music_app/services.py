@@ -116,6 +116,8 @@ class MusicService:
                 f"--script={lua_script_path}",
                 f"--input-ipc-server={self.ipc_socket_path}"
             ]
+            if sys.platform == "darwin":
+                cmd.append("--macos-app-activation-policy=prohibited")
             # Always use cookies-from-browser=chrome to ensure we extract fresh active browser session cookies
             cmd.append("--ytdl-raw-options=cookies-from-browser=chrome")
 

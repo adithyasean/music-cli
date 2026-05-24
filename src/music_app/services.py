@@ -39,41 +39,6 @@ class MusicService:
             print("Initializing YTMusic anonymously (Standard Search)", file=sys.stderr)
             self.yt = YTMusic()
 
-    def _generate_cookies_file(self) -> str:
-        """Parse Cookie string from oauth.json and write it in Netscape format."""
-        if not hasattr(self, "token_path") or not self.token_path or not os.path.exists(self.token_path):
-            return ""
-
-        try:
-            import json
-            with open(self.token_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-
-            cookie_str = config.get("Cookie")
-            if not cookie_str:
-                return ""
-
-            cookies_lines = [
-                "# Netscape HTTP Cookie File",
-                "# This file was generated automatically from oauth.json",
-            ]
-
-            pairs = cookie_str.split("; ")
-            for pair in pairs:
-                if "=" in pair:
-                    name, val = pair.split("=", 1)
-                    cookies_lines.append(f".youtube.com\tTRUE\t/\tTRUE\t2147483647\t{name}\t{val}")
-
-            base_dir = os.path.dirname(os.path.abspath(self.token_path))
-            cookies_txt_path = os.path.join(base_dir, "cookies.txt")
-            with open(cookies_txt_path, "w", encoding="utf-8") as f:
-                f.write("\n".join(cookies_lines) + "\n")
-
-            print(f"Successfully generated Netscape cookies file at: {cookies_txt_path}", file=sys.stderr)
-            return cookies_txt_path
-        except Exception as e:
-            print(f"Error generating cookies file: {e}", file=sys.stderr)
-            return ""
 
     def _is_player_healthy(self) -> bool:
         """Check if the mpv player is currently responsive over the IPC socket."""
@@ -105,7 +70,6 @@ class MusicService:
         except Exception:
             print(f"No active mpv daemon on {self.ipc_socket_path}. Spawning new process...", file=sys.stderr)
             # Spawn a new backgrounded, video-disabled, idle mpv daemon
-            cookies_path = self._generate_cookies_file()
             script_dir = os.path.dirname(os.path.abspath(__file__))
             lua_script_path = os.path.join(script_dir, "auto_pause.lua")
             cmd = [

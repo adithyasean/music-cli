@@ -106,11 +106,14 @@ class MusicService:
             print(f"No active mpv daemon on {self.ipc_socket_path}. Spawning new process...", file=sys.stderr)
             # Spawn a new backgrounded, video-disabled, idle mpv daemon
             cookies_path = self._generate_cookies_file()
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            lua_script_path = os.path.join(script_dir, "auto_pause.lua")
             cmd = [
                 "mpv",
                 "--idle",
                 "--no-video",
                 "--quiet",
+                f"--script={lua_script_path}",
                 f"--input-ipc-server={self.ipc_socket_path}"
             ]
             # Always use cookies-from-browser=chrome to ensure we extract fresh active browser session cookies

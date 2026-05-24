@@ -155,8 +155,54 @@ async def list_playlists(limit: int = 25) -> str:
         print(f"Error retrieving playlists: {e}", file=sys.stderr)
         return f"Error retrieving playlists: {str(e)}"
 
+@mcp.tool()
+async def play_track(query: str) -> str:
+    """
+    Search YouTube Music for a track and immediately play the highest ranked match.
+    """
+    try:
+        print(f"MCP Tool 'play_track' called with query='{query}'", file=sys.stderr)
+        results = service.search_tracks(query, limit=1)
+        if not results:
+            return f"No matches found for query '{query}'."
+        track = results[0]
+        service.play_track(track["id"])
+        await asyncio.sleep(0.8)
+        status = service.get_status()
+        return f"Successfully playing: {status['title']} by {status['artist']}"
+    except Exception as e:
+        print(f"Error starting playback: {e}", file=sys.stderr)
+        return f"Error starting playback: {str(e)}"
+
+@mcp.tool()
+async def set_volume(level: int) -> str:
+    """
+    Set the volume of the background media player (0 to 100).
+    """
+    try:
+        print(f"MCP Tool 'set_volume' called with level={level}", file=sys.stderr)
+        service.set_volume(level)
+        return f"Volume successfully set to {level}%."
+    except Exception as e:
+        print(f"Error setting volume: {e}", file=sys.stderr)
+        return f"Error setting volume: {str(e)}"
+
+@mcp.tool()
+async def update_credentials(raw_input: str) -> str:
+    """
+    Update the YouTube Music credentials/cookies using a raw Cookie header or curl command from your browser.
+    """
+    try:
+        print("MCP Tool 'update_credentials' called", file=sys.stderr)
+        msg = service.update_credentials(raw_input)
+        return msg
+    except Exception as e:
+        print(f"Error updating credentials: {e}", file=sys.stderr)
+        return f"Error updating credentials: {str(e)}"
+
 def main():
     mcp.run()
 
 if __name__ == "__main__":
     main()
+

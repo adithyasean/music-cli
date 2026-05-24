@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [0.2.0] - 2026-05-24
 
 ### Added
+- **`play_track`, `set_volume`, and `update_credentials` MCP Tools:** Added missing programmatic FastMCP tools to allow autonomous AI agents to search-and-play tracks, control volume level, and update YouTube Music credentials directly via MCP calls.
 - **`music credentials` CLI Command:** Added a new `@app.command()` to `cli.py` to allow easy manual updating of session cookies directly from a browser Cookie header.
 - **Log Rotation/Trimming Debug Logger:** Redirected standard output and standard error from the background player daemon to `/tmp/mpv-music.log` for direct visibility during troubleshooting.
 - **`--quiet` Playback Mode:** Configured the background player daemon to run in `--quiet` mode to suppress stdout status progress counters, ensuring the log file stays clean and only records essential events/errors.

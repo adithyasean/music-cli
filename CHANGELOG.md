@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-05-26
+
+### Added
+- **Google Chrome / AppleScript Playback Backend:** Added direct support for macOS Google Chrome automation. By setting `YTM_USE_CHROME=true`, all playback, volume, progress, and metadata extraction queries route through the user's active Chrome browser session.
+- **Bypasses Bot Detection:** Avoids issues with bot detection or unauthorized headless IP blocks by running directly within the user's logged-in Chrome profile context.
+- **One-Time AppleScript Setup Guides:** Documented setup instructions for enabling AppleScript developer options in Google Chrome on macOS.
+
 ## [0.2.0] - 2026-05-24
 
 ### Added

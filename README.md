@@ -97,3 +97,18 @@ uv run music-mcp
 ## 🔐 Credentials & fallbacks
 - Run authentication setup with: `uv run ytmusicapi oauth`
 - If running in headless or throttled cloud servers, supply a `YTM_COOKIE` environment variable containing a valid browser session cookie header.
+
+## 🌐 macOS Google Chrome Playback Mode (Zero CLI Dependencies)
+
+On macOS, you can route all audio playback, volume controls, and track queries directly through your active, already-logged-in **Google Chrome** browser window. This utilizes your existing Google session context, completely bypassing any bot-detection blocks and avoiding the need for `mpv` player processes.
+
+### Setup & Activation:
+1. **Enable AppleScript in Chrome:**
+   - In Google Chrome, go to the top menu bar: **View ➔ Developer ➔ check "Allow JavaScript from Apple Events"**.
+2. **Activate the Backend:**
+   - Set the environment variable:
+     ```bash
+     export YTM_USE_CHROME=true
+     ```
+   - (Or add `YTM_USE_CHROME=true` to your project's `.env` file.)
+3. All commands (`music play`, `music status`, etc.) will now control and inspect your open Google Chrome tab seamlessly!

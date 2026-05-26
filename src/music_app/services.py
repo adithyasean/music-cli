@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import subprocess
+import json
 from typing import Dict, Any, List
 from ytmusicapi import YTMusic
 from python_mpv_jsonipc import MPV
@@ -12,9 +13,67 @@ class MusicService:
         self.ipc_socket_path = "/tmp/mpv-music.sock" if sys.platform != "win32" else r"\\.\pipe\mpv-music"
         self.player = None
         self._init_ytmusic(token_path, cookie_env_var)
-        self.use_chrome = os.getenv("YTM_USE_CHROME", "false").lower() == "true"
+        self._load_settings()
         if not self.use_chrome:
             self._ensure_mpv_running()
+
+    def _load_settings(self):
+        """Loads persistent user settings like playback backend."""
+        settings_dir = os.path.dirname(self.token_path)
+        self.settings_path = os.path.join(settings_dir, "settings.json")
+        self.backend = "mpv"  # Default
+        
+        # Load from settings.json if it exists
+        if os.path.exists(self.settings_path):
+            try:
+                with open(self.settings_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self.backend = data.get("backend", "mpv").lower()
+            except Exception as e:
+                print(f"Error reading settings from {self.settings_path}: {e}", file=sys.stderr)
+        else:
+            # Fallback to YTM_USE_CHROME environment/dotenv variable
+            use_chrome_env = os.getenv("YTM_USE_CHROME", "false").lower() == "true"
+            self.backend = "chrome" if use_chrome_env else "mpv"
+
+        self.use_chrome = (self.backend == "chrome")
+
+    def set_backend(self, backend: str) -> str:
+        """Saves and switches the active playback backend dynamically."""
+        backend = backend.lower().strip()
+        if backend not in ["chrome", "mpv"]:
+            raise ValueError("Invalid backend. Supported options are 'chrome' and 'mpv'.")
+        
+        self.backend = backend
+        self.use_chrome = (backend == "chrome")
+        
+        # Save to settings.json
+        try:
+            data = {}
+            if os.path.exists(self.settings_path):
+                with open(self.settings_path, "r", encoding="utf-8") as f:
+                    try:
+                        data = json.load(f)
+                    except Exception:
+                        pass
+            data["backend"] = backend
+            with open(self.settings_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            print(f"Error saving settings to {self.settings_path}: {e}", file=sys.stderr)
+            
+        # Manage active processes
+        if self.use_chrome:
+            # Terminate mpv if we switch to chrome to release system resources
+            try:
+                subprocess.run(["killall", "mpv"], capture_output=True)
+            except Exception:
+                pass
+            return f"Playback backend successfully switched to 'chrome' (headed mode via Chrome browser). Config saved."
+        else:
+            # Ensure mpv is running if we switch to mpv
+            self._ensure_mpv_running()
+            return f"Playback backend successfully switched to 'mpv' (headless mode via background daemon). Config saved."
 
     def _load_dotenv(self):
         """Loads environment variables from project and assistant .env files if present."""

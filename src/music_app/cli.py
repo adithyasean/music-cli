@@ -174,5 +174,21 @@ def credentials(
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
+@app.command()
+def backend(
+    name: str = typer.Argument(..., help="The playback backend to use: 'chrome' (headed) or 'mpv' (headless)")
+):
+    """Switch the active playback backend between Chrome (headed) and mpv (headless)."""
+    try:
+        name = name.lower().strip()
+        if name not in ["chrome", "mpv"]:
+            typer.echo("Error: Invalid backend. Choose 'chrome' or 'mpv'.", err=True)
+            raise typer.Exit(1)
+        msg = service.set_backend(name)
+        typer.echo(msg)
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
 if __name__ == "__main__":
     app()

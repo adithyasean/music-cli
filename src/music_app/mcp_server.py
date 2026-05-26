@@ -200,6 +200,21 @@ async def update_credentials(raw_input: str) -> str:
         print(f"Error updating credentials: {e}", file=sys.stderr)
         return f"Error updating credentials: {str(e)}"
 
+@mcp.tool()
+async def switch_backend(backend: str) -> str:
+    """
+    Switch the active playback backend between 'chrome' (headed macOS Chrome window) and 'mpv' (headless background audio daemon).
+    Once switched, the choice is persisted across all CLI commands and agent tasks.
+    """
+    try:
+        backend = backend.lower().strip()
+        if backend not in ["chrome", "mpv"]:
+            return "Error: Invalid backend. Supported backends are 'chrome' and 'mpv'."
+        msg = service.set_backend(backend)
+        return msg
+    except Exception as e:
+        return f"Error switching backend: {str(e)}"
+
 def main():
     mcp.run()
 

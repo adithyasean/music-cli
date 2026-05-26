@@ -11,7 +11,82 @@ class MusicService:
         self.ipc_socket_path = "/tmp/mpv-music.sock" if sys.platform != "win32" else r"\\.\pipe\mpv-music"
         self.player = None
         self._init_ytmusic(token_path, cookie_env_var)
-        self._ensure_mpv_running()
+        self.use_chrome = os.getenv("YTM_USE_CHROME", "false").lower() == "true"
+        if not self.use_chrome:
+            self._ensure_mpv_running()
+
+    def _run_applescript(self, script: str) -> str:
+        """Helper to execute AppleScript on macOS."""
+        if sys.platform != "darwin":
+            return ""
+        try:
+            process = subprocess.Popen(
+                ['osascript', '-e', script],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            stdout, stderr = process.communicate()
+            if stderr.strip():
+                print(f"AppleScript error: {stderr.strip()}", file=sys.stderr)
+            return stdout.strip()
+        except Exception as e:
+            print(f"Error running AppleScript: {e}", file=sys.stderr)
+            return ""
+
+    def _execute_js_in_chrome(self, js_code: str) -> str:
+        """Finds the YouTube Music tab in Chrome and runs the given JS code."""
+        escaped_js = js_code.replace('"', '\\"').replace('\n', ' ')
+        script = f'''
+        tell application "Google Chrome"
+            set found to false
+            repeat with w in windows
+                repeat with t in tabs of w
+                    if URL of t contains "music.youtube.com" then
+                        set resultVal to execute t javascript "{escaped_js}"
+                        set found to true
+                        return resultVal
+                    end if
+                end repeat
+            end repeat
+            if not found then
+                return "NOT_OPEN"
+            end if
+        end tell
+        '''
+        return self._run_applescript(script)
+
+    def _ensure_chrome_ytm_open(self, target_url: str = None):
+        """Focuses or opens the YouTube Music tab in Google Chrome."""
+        url_to_open = target_url if target_url else "https://music.youtube.com"
+        script = f'''
+        tell application "Google Chrome"
+            set found to false
+            repeat with w in windows
+                set tabIdx to 1
+                repeat with t in tabs of w
+                    if URL of t contains "music.youtube.com" then
+                        if "{target_url or ''}" is not "" then
+                            set URL of t to "{url_to_open}"
+                        end if
+                        set active tab index of w to tabIdx
+                        set index of w to 1
+                        activate
+                        set found to true
+                        return "FOCUSED"
+                    end if
+                    set tabIdx to tabIdx + 1
+                end repeat
+            end repeat
+            if not found then
+                open location "{url_to_open}"
+                activate
+                return "OPENED"
+            end if
+        end tell
+        '''
+        return self._run_applescript(script)
+
 
     def _init_ytmusic(self, token_path: str, cookie_env_var: str):
         # Resolve absolute path for token_path if it's relative
@@ -144,6 +219,10 @@ class MusicService:
         return tracks
 
     def play_track(self, video_id: str):
+        if self.use_chrome:
+            self._ensure_chrome_ytm_open(f"https://music.youtube.com/watch?v={video_id}")
+            return
+
         self._ensure_mpv_running()
         if not self.player:
             raise RuntimeError("mpv player is not running and could not be started.")
@@ -164,7 +243,11 @@ class MusicService:
             print(f"Failed to log play history to YouTube Music: {e}", file=sys.stderr)
 
     def play_playlist(self, playlist_id: str):
-        """Load a full YouTube Music playlist into mpv for continuous playback."""
+        """Load a full YouTube Music playlist into mpv or Chrome for continuous playback."""
+        if self.use_chrome:
+            self._ensure_chrome_ytm_open(f"https://music.youtube.com/playlist?list={playlist_id}")
+            return
+
         self._ensure_mpv_running()
         if not self.player:
             raise RuntimeError("mpv player is not running and could not be started.")
@@ -175,6 +258,12 @@ class MusicService:
         self.player.pause = False
 
     def toggle_pause(self) -> bool:
+        if self.use_chrome:
+            self._execute_js_in_chrome("document.querySelector('#play-pause-button').click();")
+            time.sleep(0.5)
+            status = self.get_status()
+            return status["pause"]
+
         self._ensure_mpv_running()
         if not self.player:
             raise RuntimeError("mpv player is not running.")
@@ -184,6 +273,12 @@ class MusicService:
         return new_state
 
     def stop_playback(self):
+        if self.use_chrome:
+            status = self.get_status()
+            if not status["pause"]:
+                self._execute_js_in_chrome("document.querySelector('#play-pause-button').click();")
+            return
+
         self._ensure_mpv_running()
         if not self.player:
             raise RuntimeError("mpv player is not running.")
@@ -244,6 +339,10 @@ class MusicService:
             return []
 
     def set_volume(self, val: int):
+        if self.use_chrome:
+            self._execute_js_in_chrome(f"document.querySelector('ytmusic-player-bar').setVolume({val});")
+            return
+
         self._ensure_mpv_running()
         if not self.player:
             raise RuntimeError("mpv player is not running.")
@@ -251,6 +350,74 @@ class MusicService:
         self.player.volume = max(0, min(100, val))
 
     def get_status(self) -> Dict[str, Any]:
+        if self.use_chrome:
+            js = '''
+            (() => {
+                const titleEl = document.querySelector('.ytmusic-player-bar .title');
+                const bylineEl = document.querySelector('.ytmusic-player-bar .byline');
+                const timeEl = document.querySelector('.ytmusic-player-bar .time-info');
+                const playButton = document.querySelector('#play-pause-button');
+                if (!titleEl) return "Stopped";
+                
+                let playing = false;
+                if (playButton) {
+                    const innerBtn = playButton.querySelector('button');
+                    const label = innerBtn ? innerBtn.getAttribute('aria-label') : '';
+                    playing = label === 'Pause' || playButton.getAttribute('title') === 'Pause';
+                }
+                
+                let playbackTime = 0.0;
+                let duration = 0.0;
+                if (timeEl) {
+                    const parts = timeEl.innerText.split('/');
+                    if (parts.length === 2) {
+                        const parseTime = (str) => {
+                            const tParts = str.trim().split(':').map(Number);
+                            if (tParts.length === 2) return tParts[0] * 60 + tParts[1];
+                            if (tParts.length === 3) return tParts[0] * 3600 + tParts[1] * 60 + tParts[2];
+                            return 0.0;
+                        };
+                        playbackTime = parseTime(parts[0]);
+                        duration = parseTime(parts[1]);
+                    }
+                }
+                
+                return JSON.stringify({
+                    title: titleEl.innerText,
+                    artist: bylineEl ? bylineEl.innerText : 'Unknown Artist',
+                    album: 'Chrome Player',
+                    playback_time: playbackTime,
+                    duration: duration,
+                    pause: !playing,
+                    volume: 100
+                });
+            })()
+            '''
+            res = self._execute_js_in_chrome(js)
+            if not res or res == "NOT_OPEN" or res == "Stopped":
+                return {
+                    "title": "Stopped",
+                    "artist": "N/A",
+                    "album": "N/A",
+                    "playback_time": 0.0,
+                    "duration": 0.0,
+                    "pause": True,
+                    "volume": 0
+                }
+            try:
+                import json
+                return json.loads(res)
+            except Exception:
+                return {
+                    "title": "Stopped",
+                    "artist": "N/A",
+                    "album": "N/A",
+                    "playback_time": 0.0,
+                    "duration": 0.0,
+                    "pause": True,
+                    "volume": 0
+                }
+
         try:
             self._ensure_mpv_running()
         except Exception:

@@ -8,8 +8,9 @@ description: Control YouTube Music streaming playback, check status, adjust volu
 This skill enables your AI agent to control system music playback and interact with your YouTube Music Premium account.
 
 ## Requirements
-*   **Media Player:** `mpv` must be installed on the host system (`brew install mpv`).
-*   **Authentication:** Managed via `oauth.json` in the `/Users/adithya/Development/adithyasean/music-cli` directory.
+*   **Media Player (Default):** `mpv` must be installed on the host system (`brew install mpv`).
+*   **Alternative Player (macOS Chrome):** Run directly inside your active Google Chrome browser window by setting the environment variable `YTM_USE_CHROME=true`. Note: Requires enabling **View ➔ Developer ➔ Allow JavaScript from Apple Events** in Google Chrome.
+*   **Authentication:** Managed via `oauth.json` in the `/Users/adithya/Development/adithyasean/music-cli` directory (only required for cloud history/playlist fetches; not needed for direct Chrome playback controls).
 
 ## Available CLI Tools
 The CLI is installed globally and can be run from any directory:

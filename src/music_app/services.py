@@ -8,12 +8,38 @@ from python_mpv_jsonipc import MPV
 
 class MusicService:
     def __init__(self, token_path: str = "oauth.json", cookie_env_var: str = "YTM_COOKIE"):
+        self._load_dotenv()
         self.ipc_socket_path = "/tmp/mpv-music.sock" if sys.platform != "win32" else r"\\.\pipe\mpv-music"
         self.player = None
         self._init_ytmusic(token_path, cookie_env_var)
         self.use_chrome = os.getenv("YTM_USE_CHROME", "false").lower() == "true"
         if not self.use_chrome:
             self._ensure_mpv_running()
+
+    def _load_dotenv(self):
+        """Loads environment variables from project and assistant .env files if present."""
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        possible_paths = [
+            os.path.join(project_root, ".env"),
+            "/Users/adithya/assistant/.env"
+        ]
+        for env_path in possible_paths:
+            if os.path.exists(env_path):
+                try:
+                    with open(env_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line or line.startswith("#") or "=" not in line:
+                                continue
+                            key, val = line.split("=", 1)
+                            key = key.strip()
+                            val = val.strip()
+                            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                                val = val[1:-1]
+                            if key not in os.environ:
+                                os.environ[key] = val
+                except Exception as e:
+                    print(f"Error reading .env from {env_path}: {e}", file=sys.stderr)
 
     def _run_applescript(self, script: str) -> str:
         """Helper to execute AppleScript on macOS."""

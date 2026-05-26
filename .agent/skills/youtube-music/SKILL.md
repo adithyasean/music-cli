@@ -25,6 +25,7 @@ The CLI is installed globally and can be run from any directory:
 *   **View Recent Cloud Watch History:** `music history --limit <num>`
 *   **List Library Playlists:** `music playlists --limit <num>`
 *   **Play a Full Playlist:** `music play-playlist <playlist_id>`
+*   **Switch Playback Backend:** `music backend [chrome|mpv]`
 *   **Update Credentials:** `music credentials "<cookie_string>"`
 
 ## Available MCP Tools
@@ -36,8 +37,10 @@ If the `YouTubeMusicController` MCP server is active in the environment, the fol
 *   `check_playback_status()` -> Real-time volume, track metadata, and time elapsed.
 *   `stop_playback()` -> Stop audio streaming.
 *   `set_volume(level: int)` -> Set playback volume (0-100).
+*   `switch_backend(backend: str)` -> Persistently switch the active playback backend between 'chrome' and 'mpv'.
 *   `get_recent_history(limit: int = 5)` -> Retrieve logged watch history from the premium account.
 *   `list_playlists(limit: int = 25)` -> List all playlists in the user's YouTube Music library.
 *   `play_playlist(playlist_id: str)` -> Load and play a full playlist by its Playlist ID.
 *   `update_credentials(raw_input: str)` -> Update YouTube Music credentials using a raw Cookie header or curl command.
+
 

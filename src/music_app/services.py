@@ -620,6 +620,33 @@ class MusicService:
         if not cookie:
             raise ValueError("Could not find a valid 'Cookie' header containing '__Secure-3PAPISID' in the input.")
 
+        # Parse existing cookie if it exists to preserve HttpOnly cookies like HSID, SSID
+        existing_cookie_dict = {}
+        if os.path.exists(token_path):
+            try:
+                with open(token_path, "r", encoding="utf-8") as f:
+                    old_data = json.load(f)
+                    old_cookie = old_data.get("Cookie", "")
+                    for part in old_cookie.split(";"):
+                        part = part.strip()
+                        if "=" in part:
+                            k, v = part.split("=", 1)
+                            existing_cookie_dict[k.strip()] = v.strip()
+            except Exception:
+                pass
+
+        # Parse new cookie
+        new_cookie_dict = {}
+        for part in cookie.split(";"):
+            part = part.strip()
+            if "=" in part:
+                k, v = part.split("=", 1)
+                new_cookie_dict[k.strip()] = v.strip()
+
+        # Merge them (new values overwrite old ones, but old keys not in new ones are preserved)
+        merged_cookie_dict = {**existing_cookie_dict, **new_cookie_dict}
+        cookie = "; ".join(f"{k}={v}" for k, v in merged_cookie_dict.items())
+
         user_agent = headers.get("User-Agent") or headers.get("user-agent") or "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
         accept = headers.get("Accept") or headers.get("accept") or "*/*"
         accept_lang = headers.get("Accept-Language") or headers.get("accept-language") or "en-US,en;q=0.9"
@@ -633,6 +660,18 @@ class MusicService:
             "X-Origin": "https://music.youtube.com",
             "Authorization": "SAPISIDHASH"
         }
+
+        # Keep or set x-goog-authuser if it was provided
+        authuser = headers.get("x-goog-authuser") or headers.get("X-Goog-AuthUser")
+        if not authuser and os.path.exists(token_path):
+            try:
+                with open(token_path, "r", encoding="utf-8") as f:
+                    old_data = json.load(f)
+                    authuser = old_data.get("x-goog-authuser") or old_data.get("X-Goog-AuthUser")
+            except Exception:
+                pass
+        if authuser:
+            config["x-goog-authuser"] = authuser
 
         # Write config to file
         with open(token_path, "w", encoding="utf-8") as f:
@@ -688,9 +727,30 @@ class MusicService:
                     except Exception:
                         pass
             
-            if chrome_cookie and chrome_cookie != current_cookie:
-                print("Preemptive sync: Chrome cookies changed. Refreshing oauth.json...", file=sys.stderr)
-                self.update_credentials(chrome_cookie, self.token_path)
+            if chrome_cookie:
+                # Parse both to compare only the keys present in chrome_cookie (since HttpOnly keys like HSID, SSID are missing from javascript)
+                def parse_cookies(cookie_str):
+                    res = {}
+                    for part in cookie_str.split(";"):
+                        part = part.strip()
+                        if "=" in part:
+                            k, v = part.split("=", 1)
+                            res[k.strip()] = v.strip()
+                    return res
+                
+                chrome_dict = parse_cookies(chrome_cookie)
+                current_dict = parse_cookies(current_cookie)
+                
+                # Check if any key in chrome_cookie is different or missing in current_cookie
+                cookies_changed = False
+                for k, v in chrome_dict.items():
+                    if current_dict.get(k) != v:
+                        cookies_changed = True
+                        break
+                
+                if cookies_changed:
+                    print("Preemptive sync: Chrome cookies changed. Refreshing oauth.json...", file=sys.stderr)
+                    self.update_credentials(chrome_cookie, self.token_path)
         except Exception as sync_err:
             print(f"Preemptive cookie sync failed: {sync_err}", file=sys.stderr)
 

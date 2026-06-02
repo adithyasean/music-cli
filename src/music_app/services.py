@@ -9,7 +9,7 @@ from python_mpv_jsonipc import MPV
 
 class MusicService:
     def __init__(self, token_path: str = "oauth.json", cookie_env_var: str = "YTM_COOKIE"):
-        self._load_dotenv()
+        self.config = self._load_config()
         self.ipc_socket_path = "/tmp/mpv-music.sock" if sys.platform != "win32" else r"\\.\pipe\mpv-music"
         self.player = None
         self._init_ytmusic(token_path, cookie_env_var)
@@ -33,7 +33,7 @@ class MusicService:
                 print(f"Error reading settings from {self.settings_path}: {e}", file=sys.stderr)
         else:
             # Fallback to YTM_USE_CHROME environment/dotenv variable
-            use_chrome_env = os.getenv("YTM_USE_CHROME", "false").lower() == "true"
+            use_chrome_env = self.config.get("YTM_USE_CHROME", "false").lower() == "true"
             self.backend = "chrome" if use_chrome_env else "mpv"
 
         self.use_chrome = (self.backend == "chrome")
@@ -75,12 +75,15 @@ class MusicService:
             self._ensure_mpv_running()
             return f"Playback backend successfully switched to 'mpv' (headless mode via background daemon). Config saved."
 
-    def _load_dotenv(self):
-        """Loads environment variables from project and assistant .env files if present."""
+    def _load_config(self) -> Dict[str, str]:
+        """Loads configuration variables from local, home, and standard config folders."""
+        config = {}
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         possible_paths = [
             os.path.join(project_root, ".env"),
-            "/Users/adithya/assistant/.env"
+            os.path.abspath(".env"),
+            os.path.expanduser("~/.env"),
+            os.path.expanduser("~/.config/music-cli/.env")
         ]
         for env_path in possible_paths:
             if os.path.exists(env_path):
@@ -95,10 +98,10 @@ class MusicService:
                             val = val.strip()
                             if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
                                 val = val[1:-1]
-                            if key not in os.environ:
-                                os.environ[key] = val
+                            config[key] = val
                 except Exception as e:
                     print(f"Error reading .env from {env_path}: {e}", file=sys.stderr)
+        return config
 
     def _run_applescript(self, script: str) -> str:
         """Helper to execute AppleScript on macOS."""
@@ -188,13 +191,35 @@ class MusicService:
         self.token_path = token_path
 
         # Fallback to browser cookies if running on cloud servers to bypass IP blocks
-        cookie_val = os.getenv(cookie_env_var)
+        cookie_val = self.config.get(cookie_env_var)
         if cookie_val:
             print("Initializing YTMusic with browser cookies from environment", file=sys.stderr)
             self.yt = YTMusic(auth=cookie_val)
         elif os.path.exists(token_path):
             print(f"Initializing YTMusic with OAuth credentials from {token_path}", file=sys.stderr)
-            self.yt = YTMusic(auth=token_path)
+            # Try to load client credentials directly from config dictionary
+            client_id = self.config.get("YTM_CLIENT_ID")
+            client_secret = self.config.get("YTM_CLIENT_SECRET")
+            
+            # Check if this is indeed an OAuth JSON file
+            is_oauth = False
+            try:
+                with open(token_path, "r", encoding="utf-8") as f:
+                    token_data = json.load(f)
+                is_oauth = all(k in token_data for k in ["access_token", "refresh_token"])
+            except Exception:
+                pass
+                
+            if is_oauth:
+                if client_id and client_secret:
+                    from ytmusicapi.auth.oauth import OAuthCredentials
+                    oauth_creds = OAuthCredentials(client_id, client_secret)
+                    self.yt = YTMusic(auth=token_path, oauth_credentials=oauth_creds)
+                else:
+                    print("WARNING: Custom OAuth token file detected, but YTM_CLIENT_ID and YTM_CLIENT_SECRET are not defined in your config.", file=sys.stderr)
+                    self.yt = YTMusic(auth=token_path)
+            else:
+                self.yt = YTMusic(auth=token_path)
         else:
             print("Initializing YTMusic anonymously (Standard Search)", file=sys.stderr)
             self.yt = YTMusic()
@@ -271,7 +296,7 @@ class MusicService:
     def search_tracks(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         # Retrieve track metadata safely
         try:
-            results = self.yt.search(query, filter="songs", limit=limit)
+            results = self._call_yt("search", query, filter="songs", limit=limit)
         except Exception as e:
             print(f"ytmusicapi search error: {e}", file=sys.stderr)
             return []
@@ -321,8 +346,8 @@ class MusicService:
         # Log playback to YouTube Music watch history if authenticated
         try:
             if hasattr(self, "yt") and self.yt and getattr(self.yt, "auth_type", None) and self.yt.auth_type.name != "UNAUTHORIZED":
-                song_data = self.yt.get_song(video_id)
-                self.yt.add_history_item(song_data)
+                song_data = self._call_yt("get_song", video_id)
+                self._call_yt("add_history_item", song_data)
                 print(f"Successfully logged play history to YouTube Music for video: {video_id}", file=sys.stderr)
         except Exception as e:
             print(f"Failed to log play history to YouTube Music: {e}", file=sys.stderr)
@@ -374,7 +399,7 @@ class MusicService:
             raise RuntimeError("No authenticated session available. Please configure oauth.json.")
         
         try:
-            results = self.yt.get_history()
+            results = self._call_yt("get_history")
             tracks = []
             for track in results[:limit]:
                 artists_list = []
@@ -409,7 +434,7 @@ class MusicService:
             raise RuntimeError("No authenticated session available. Please configure oauth.json.")
 
         try:
-            results = self.yt.get_library_playlists(limit=limit)
+            results = self._call_yt("get_library_playlists", limit=limit)
             playlists = []
             for pl in results:
                 playlists.append({
@@ -616,4 +641,76 @@ class MusicService:
         # Re-initialize YTMusic on-the-fly
         self.yt = YTMusic(auth=token_path)
         return "Session updated successfully!"
+
+    def refresh_session(self) -> str:
+        """Automatically refresh session credentials by grabbing cookies from Chrome if open."""
+        script = '''
+        tell application "Google Chrome"
+            repeat with w in windows
+                repeat with t in tabs of w
+                    if URL of t contains "music.youtube.com" then
+                        return execute t javascript "document.cookie"
+                    end if
+                end repeat
+            end repeat
+        end tell
+        '''
+        cookie = self._run_applescript(script)
+        if cookie and "__Secure-3PAPISID" in cookie:
+            return self.update_credentials(cookie, self.token_path)
+        else:
+            return "Failed to extract active YouTube Music session cookies from Google Chrome. Make sure Chrome is open with music.youtube.com."
+
+    def _call_yt(self, method_name: str, *args, **kwargs):
+        """Execute a YTMusic method with automatic self-healing cookie refresh if it fails due to authentication issues."""
+        # Preemptive check: sync with Chrome cookies if they changed to prevent stale requests
+        try:
+            script = '''
+            tell application "Google Chrome"
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        if URL of t contains "music.youtube.com" then
+                            return execute t javascript "document.cookie"
+                        end if
+                    end repeat
+                end repeat
+            end tell
+            '''
+            chrome_cookie = self._run_applescript(script)
+            
+            # Read current cookie from oauth.json
+            current_cookie = ""
+            if os.path.exists(self.token_path):
+                with open(self.token_path, "r", encoding="utf-8") as f:
+                    try:
+                        token_data = json.load(f)
+                        current_cookie = token_data.get("Cookie", "")
+                    except Exception:
+                        pass
+            
+            if chrome_cookie and chrome_cookie != current_cookie:
+                print("Preemptive sync: Chrome cookies changed. Refreshing oauth.json...", file=sys.stderr)
+                self.update_credentials(chrome_cookie, self.token_path)
+        except Exception as sync_err:
+            print(f"Preemptive cookie sync failed: {sync_err}", file=sys.stderr)
+
+        # Now execute the method
+        try:
+            method = getattr(self.yt, method_name)
+            return method(*args, **kwargs)
+        except Exception as e:
+            err_str = str(e).lower()
+            # Catch HTTP 400 Bad Request, unauthorized, expired, 401, 403, or invalid cookie credentials
+            is_auth_error = any(x in err_str for x in ["unauthorized", "login", "cookie", "auth", "credentials", "400", "401", "403", "invalid"])
+            
+            if is_auth_error:
+                print("Authentication or API error detected. Attempting self-healing cookie refresh from Chrome...", file=sys.stderr)
+                refresh_msg = self.refresh_session()
+                if "success" in refresh_msg.lower():
+                    print("Self-healing successful! Retrying request...", file=sys.stderr)
+                    method = getattr(self.yt, method_name)
+                    return method(*args, **kwargs)
+                else:
+                    print(f"Self-healing failed: {refresh_msg}", file=sys.stderr)
+            raise e
 

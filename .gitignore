@@ -31,5 +31,6 @@ copy_all_as_cURL.txt
 plan.md
 cookies.txt
 settings.json
+.env
 
 

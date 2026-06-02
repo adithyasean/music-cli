@@ -94,9 +94,21 @@ Launch the Model Context Protocol stdio server for developer AI agents:
 uv run music-mcp
 ```
 
-## 🔐 Credentials & fallbacks
-- Run authentication setup with: `uv run ytmusicapi oauth`
-- If running in headless or throttled cloud servers, supply a `YTM_COOKIE` environment variable containing a valid browser session cookie header.
+## 🔐 Credentials & Authentication
+
+To interact with private endpoints (like fetching your play history, playlists, or logging played items):
+
+1. **Initial Setup / Manual Update**:
+   - Open [music.youtube.com](https://music.youtube.com/) in Google Chrome and ensure you are logged in.
+   - Open Developer Tools (`Cmd + Option + I`), select the **Network** tab, click any request (like `browse`), and copy the value of the `Cookie` header.
+   - Save your credentials by running:
+     ```bash
+     music credentials "<pasted cookie string>"
+     ```
+2. **Automated Background Refresh**:
+   - The application automatically handles session refreshes. Whenever status queries run on macOS, it grabs fresh session cookies from Chrome in the background.
+   - It **merges** these cookies with your saved configuration, ensuring that security-sensitive `HttpOnly` keys (like `HSID` and `SSID`) are preserved so your session doesn't get invalidated.
+   - If a request fails due to an auth issue, a self-healing block will attempt to sync cookies and retry the request automatically.
 
 ## 🌐 macOS Google Chrome Playback Mode (Zero CLI Dependencies)
 

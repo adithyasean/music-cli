@@ -425,7 +425,11 @@ class MusicService:
                 })
             return tracks
         except Exception as e:
-            print(f"ytmusicapi history error: {e}", file=sys.stderr)
+            err_msg = str(e)
+            if "none" in err_msg.lower() or "auth" in err_msg.lower():
+                print("ytmusicapi history error: The YouTube Music API returned a Server Error (likely due to expired or unauthenticated cookies in oauth.json). Attempting to run 'music credentials' or syncing Chrome cookies may resolve this.", file=sys.stderr)
+            else:
+                print(f"ytmusicapi history error: {e}", file=sys.stderr)
             return []
 
     def get_playlists(self, limit: int = 25) -> List[Dict[str, Any]]:
@@ -445,7 +449,11 @@ class MusicService:
                 })
             return playlists
         except Exception as e:
-            print(f"ytmusicapi get_library_playlists error: {e}", file=sys.stderr)
+            err_msg = str(e)
+            if "none" in err_msg.lower() or "auth" in err_msg.lower():
+                print("ytmusicapi playlists error: The YouTube Music API returned a Server Error (likely due to expired or unauthenticated cookies in oauth.json). Attempting to run 'music credentials' or syncing Chrome cookies may resolve this.", file=sys.stderr)
+            else:
+                print(f"ytmusicapi get_library_playlists error: {e}", file=sys.stderr)
             return []
 
     def set_volume(self, val: int):
@@ -688,23 +696,54 @@ class MusicService:
         return "Session updated successfully!"
 
     def refresh_session(self) -> str:
-        """Automatically refresh session credentials by grabbing cookies from Chrome if open."""
-        script = '''
-        tell application "Google Chrome"
-            repeat with w in windows
-                repeat with t in tabs of w
-                    if URL of t contains "music.youtube.com" then
-                        return execute t javascript "document.cookie"
-                    end if
-                end repeat
-            end repeat
-        end tell
-        '''
-        cookie = self._run_applescript(script)
-        if cookie and "__Secure-3PAPISID" in cookie:
-            return self.update_credentials(cookie, self.token_path)
-        else:
-            return "Failed to extract active YouTube Music session cookies from Google Chrome. Make sure Chrome is open with music.youtube.com."
+        """Automatically refresh session credentials by decrypting Chrome's cookie database via yt-dlp."""
+        cookies_file = "/tmp/yt-cookies.txt"
+        if os.path.exists(cookies_file):
+            try:
+                os.remove(cookies_file)
+            except Exception:
+                pass
+            
+        print("Extracting cookies from Chrome database via yt-dlp...", file=sys.stderr)
+        cmd = ["yt-dlp", "--cookies-from-browser", "chrome", "--cookies", cookies_file, "--skip-download", "https://music.youtube.com"]
+        try:
+            # We ignore errors because yt-dlp generic extractor might fail on URL, but cookies are still written
+            subprocess.run(cmd, capture_output=True, timeout=10)
+        except Exception as e:
+            print(f"yt-dlp cookie extraction timed out or failed: {e}", file=sys.stderr)
+            
+        if not os.path.exists(cookies_file):
+            return "Failed to extract active YouTube Music session cookies from Chrome database."
+            
+        try:
+            cookie_parts = []
+            with open(cookies_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    parts = line.split("\t")
+                    if len(parts) >= 7:
+                        domain, name, value = parts[0], parts[5], parts[6]
+                        if "youtube.com" in domain:
+                            cookie_parts.append(f"{name}={value}")
+                            
+            cookie_str = "; ".join(cookie_parts)
+            
+            if not cookie_str or "__Secure-3PAPISID" not in cookie_str:
+                return "Failed to parse required secure cookies from extracted data."
+                
+            msg = self.update_credentials(cookie_str, self.token_path)
+            
+            # Clean up the cookies file for security
+            try:
+                os.remove(cookies_file)
+            except Exception:
+                pass
+                
+            return f"Session successfully synchronized with Chrome database! ({msg})"
+        except Exception as e:
+            return f"Failed to parse extracted cookies: {e}"
 
     def _call_yt(self, method_name: str, *args, **kwargs):
         """Execute a YTMusic method with automatic self-healing cookie refresh if it fails due to authentication issues."""
@@ -766,8 +805,8 @@ class MusicService:
             return method(*args, **kwargs)
         except Exception as e:
             err_str = str(e).lower()
-            # Catch HTTP 400 Bad Request, unauthorized, expired, 401, 403, or invalid cookie credentials
-            is_auth_error = any(x in err_str for x in ["unauthorized", "login", "cookie", "auth", "credentials", "400", "401", "403", "invalid"])
+            # Catch HTTP 400 Bad Request, unauthorized, expired, 401, 403, or invalid cookie credentials, or empty/None errors
+            is_auth_error = any(x in err_str for x in ["unauthorized", "login", "cookie", "auth", "credentials", "400", "401", "403", "invalid", "none"])
             
             if is_auth_error:
                 print("Authentication or API error detected. Attempting self-healing cookie refresh from Chrome...", file=sys.stderr)

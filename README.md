@@ -59,7 +59,7 @@ uv run music play "lofi hip hop"
 # Play a track using its explicit Video ID
 uv run music play-id d7G2_XwMmsU
 
-# Check player status and track metadata
+# Check player status, track metadata, and active backend mode
 uv run music status
 
 # Adjust volume

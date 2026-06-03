@@ -79,18 +79,24 @@ async def toggle_playback() -> str:
 @mcp.tool()
 async def check_playback_status() -> str:
     """
-    Query the active system media player for real-time metadata, time position, volume, and pause state.
+    Query the active system media player for real-time metadata, time position, volume, pause state, and active backend mode.
     """
     try:
         print("MCP Tool 'check_playback_status' called", file=sys.stderr)
         status = service.get_status()
+        backend_str = f"{status['backend']} ({status['mode']})"
         if status["title"] == "Stopped":
-            return "No audio is currently playing or player is stopped."
+            return (
+                f"Status: Stopped\n"
+                f"Backend: {backend_str}\n"
+                f"No audio is currently playing or player is stopped."
+            )
         
         progress = f"{int(status['playback_time'])}s / {int(status['duration'])}s"
         state = "Paused" if status["pause"] else "Playing"
         return (
             f"Status: {state}\n"
+            f"Backend: {backend_str}\n"
             f"Track: {status['title']}\n"
             f"Artist: {status['artist']}\n"
             f"Album: {status['album']}\n"

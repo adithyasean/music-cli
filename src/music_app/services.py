@@ -460,6 +460,12 @@ class MusicService:
         self.player.volume = max(0, min(100, val))
 
     def get_status(self) -> Dict[str, Any]:
+        status_data = self._get_raw_status()
+        status_data["backend"] = self.backend
+        status_data["mode"] = "headed" if self.use_chrome else "headless"
+        return status_data
+
+    def _get_raw_status(self) -> Dict[str, Any]:
         if self.use_chrome:
             js = '''
             (() => {

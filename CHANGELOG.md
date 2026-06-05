@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-06-06
+
+### Added
+- **`mpv` Daemon Lifecycle Automation**:
+  - Configured `auto_pause.lua` to send a clean `"quit"` command instead of `"pause"` when a song/playlist finishes playing naturally (EOF at the end of the queue).
+  - Modified Python's `stop_playback` in `services.py` to send a `"quit"` command instead of `"stop"` over IPC to completely shut down the player daemon on stop commands.
+  - Resolved the macOS "mpv" Now Playing menu bar widget showing an empty player state when idle, while keeping playlist continuity and toggle pause/resume fully functional.
+
 ## [0.3.0] - 2026-05-26
 
 ### Added

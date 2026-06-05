@@ -392,7 +392,7 @@ class MusicService:
         self._ensure_mpv_running()
         if not self.player:
             raise RuntimeError("mpv player is not running.")
-        self.player.command("stop")
+        self.player.command("quit")
 
     def get_history(self, limit: int = 5) -> List[Dict[str, Any]]:
         if not hasattr(self, "yt") or not self.yt or not getattr(self.yt, "auth_type", None) or self.yt.auth_type.name == "UNAUTHORIZED":

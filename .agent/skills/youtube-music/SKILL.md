@@ -42,5 +42,3 @@ If the `YouTubeMusicController` MCP server is active in the environment, the fol
 *   `list_playlists(limit: int = 25)` -> List all playlists in the user's YouTube Music library.
 *   `play_playlist(playlist_id: str)` -> Load and play a full playlist by its Playlist ID.
 *   `update_credentials(raw_input: str)` -> Update YouTube Music credentials using a raw Cookie header or curl command.
-
-

@@ -19,7 +19,7 @@ The CLI is installed globally and can be run from any directory:
 *   **Play Song by Search:** `music play "<query>"`
 *   **Play Song by Video ID:** `music play-id <video_id>`
 *   **Pause/Resume Playback:** `music toggle`
-*   **Stop Playback completely:** `music stop`
+*   **Stop Playback & Daemon:** `music stop` (Stops playback and completely terminates the background mpv daemon)
 *   **Get Live Telemetry, Metadata, & Backend Mode:** `music status`
 *   **Set Volume Level (0-100):** `music volume <percentage>`
 *   **View Recent Cloud Watch History:** `music history --limit <num>`
@@ -33,9 +33,9 @@ If the `YouTubeMusicController` MCP server is active in the environment, the fol
 *   `search_tracks(query: str, limit: int = 5)` -> Search songs and return details.
 *   `play_track(query: str)` -> Search for a track and immediately play the highest ranked match.
 *   `play_track_by_id(video_id: str)` -> Direct playback trigger.
-*   `toggle_playback()` -> Toggle Pause/Play state.
+*   `toggle_playback()` -> Toggle Pause/Play state (pauses playback and keeps the daemon alive for resuming).
 *   `check_playback_status()` -> Real-time volume, track metadata, active backend/mode, and time elapsed.
-*   `stop_playback()` -> Stop audio streaming.
+*   `stop_playback()` -> Stop audio streaming and completely terminate the background mpv daemon.
 *   `set_volume(level: int)` -> Set playback volume (0-100).
 *   `switch_backend(backend: str)` -> Persistently switch the active playback backend between 'chrome' and 'mpv'.
 *   `get_recent_history(limit: int = 5)` -> Retrieve logged watch history from the premium account.

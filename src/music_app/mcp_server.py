@@ -36,9 +36,13 @@ async def play_track_by_id(video_id: str) -> str:
     try:
         print(f"MCP Tool 'play_track_by_id' called with video_id='{video_id}'", file=sys.stderr)
         service.play_track(video_id)
-        # Give a small delay to let mpv load the stream and parse metadata
-        await asyncio.sleep(0.8)
+        # Poll the status dynamically (up to 5 seconds) until metadata is loaded
         status = service.get_status()
+        for _ in range(10):
+            if status["title"] != "Stopped":
+                break
+            await asyncio.sleep(0.5)
+            status = service.get_status()
         return f"Successfully playing: {status['title']} by {status['artist']}"
     except Exception as e:
         print(f"Error starting playback: {e}", file=sys.stderr)
@@ -54,8 +58,13 @@ async def play_playlist(playlist_id: str) -> str:
     try:
         print(f"MCP Tool 'play_playlist' called with playlist_id='{playlist_id}'", file=sys.stderr)
         service.play_playlist(playlist_id)
-        await asyncio.sleep(1.5)
+        # Poll the status dynamically (up to 5 seconds) until metadata is loaded
         status = service.get_status()
+        for _ in range(10):
+            if status["title"] != "Stopped":
+                break
+            await asyncio.sleep(0.5)
+            status = service.get_status()
         track_info = f" — now playing: {status['title']} by {status['artist']}" if status["title"] != "Stopped" else ""
         return f"Playlist '{playlist_id}' started successfully{track_info}."
     except Exception as e:
@@ -173,8 +182,13 @@ async def play_track(query: str) -> str:
             return f"No matches found for query '{query}'."
         track = results[0]
         service.play_track(track["id"])
-        await asyncio.sleep(0.8)
+        # Poll the status dynamically (up to 5 seconds) until metadata is loaded
         status = service.get_status()
+        for _ in range(10):
+            if status["title"] != "Stopped":
+                break
+            await asyncio.sleep(0.5)
+            status = service.get_status()
         return f"Successfully playing: {status['title']} by {status['artist']}"
     except Exception as e:
         print(f"Error starting playback: {e}", file=sys.stderr)

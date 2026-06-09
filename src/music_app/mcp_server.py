@@ -36,9 +36,9 @@ async def play_track_by_id(video_id: str) -> str:
     try:
         print(f"MCP Tool 'play_track_by_id' called with video_id='{video_id}'", file=sys.stderr)
         service.play_track(video_id)
-        # Poll the status dynamically (up to 5 seconds) until metadata is loaded
+        # Poll the status dynamically (up to 15 seconds) until metadata is loaded
         status = service.get_status()
-        for _ in range(10):
+        for _ in range(30):
             if status["title"] != "Stopped":
                 break
             await asyncio.sleep(0.5)
@@ -58,9 +58,9 @@ async def play_playlist(playlist_id: str) -> str:
     try:
         print(f"MCP Tool 'play_playlist' called with playlist_id='{playlist_id}'", file=sys.stderr)
         service.play_playlist(playlist_id)
-        # Poll the status dynamically (up to 5 seconds) until metadata is loaded
+        # Poll the status dynamically (up to 15 seconds) until metadata is loaded
         status = service.get_status()
-        for _ in range(10):
+        for _ in range(30):
             if status["title"] != "Stopped":
                 break
             await asyncio.sleep(0.5)
@@ -182,9 +182,9 @@ async def play_track(query: str) -> str:
             return f"No matches found for query '{query}'."
         track = results[0]
         service.play_track(track["id"])
-        # Poll the status dynamically (up to 5 seconds) until metadata is loaded
+        # Poll the status dynamically (up to 15 seconds) until metadata is loaded
         status = service.get_status()
-        for _ in range(10):
+        for _ in range(30):
             if status["title"] != "Stopped":
                 break
             await asyncio.sleep(0.5)

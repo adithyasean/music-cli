@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **MCP Server Dynamic Playback Polling**:
   - Replaced hardcoded sleep delays (e.g. 0.8s, 1.5s) in `play_track`, `play_track_by_id`, and `play_playlist` MCP tools with dynamic status polling.
-  - The tools now check the status repeatedly (every 0.5s, up to 5s) and return as soon as the media has finished buffering and loaded. This resolves race conditions where the player reported "Stopped" too early, causing calling agents to repeatedly toggle playback.
+  - The tools now check the status repeatedly (every 0.5s, up to 15s) and return as soon as the media has finished buffering and loaded. This resolves race conditions where the player reported "Stopped" too early, causing calling agents to repeatedly toggle playback.
 
 ## [0.4.0] - 2026-06-06
 
